@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Whenever</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header class="site-header"></header>
+
+    <main class="container">
+      <p id="loading" class="loading">Loading…</p>
+
+      <div id="not-found" class="card center-card" hidden>
+        <h1>Event not found</h1>
+        <p id="not-found-msg">
+          This link may be mistyped, or the event was deleted.
+        </p>
+      </div>
+
+      <div id="event" class="stack-lg" hidden>
+        <header class="event-header">
+          <p id="tz-note" class="eyebrow"></p>
+          <h1 id="ev-title"></h1>
+          <p id="ev-desc" class="desc" hidden></p>
+        </header>
+
+        <div id="closed-banner" class="banner" hidden>
+          This event is closed and no longer accepting responses.
+        </div>
+
+        <form id="response-form" class="card stack" novalidate>
+          <div class="field">
+            <label for="name">Your name</label>
+            <input
+              id="name"
+              type="text"
+              maxlength="60"
+              autocomplete="name"
+              placeholder="Jane Doe"
+              required
+            />
+          </div>
+          <div class="field">
+            <div class="label-row">
+              <span class="label" id="slots-label"
+                >Which times work for you?</span
+              >
+              <button type="button" class="link-btn" id="toggle-all">
+                Select all
+              </button>
+            </div>
+            <div
+              id="slots"
+              class="slot-groups"
+              role="group"
+              aria-labelledby="slots-label"
+            ></div>
+          </div>
+          <p id="form-error" class="form-error" hidden aria-live="polite"></p>
+          <div class="form-actions">
+            <button id="submit-btn" class="btn btn-primary" type="submit">
+              Submit availability
+            </button>
+            <span
+              id="saved-note"
+              class="saved-note"
+              hidden
+              aria-live="polite"
+            ></span>
+          </div>
+          <p id="not-you" class="hint" hidden>
+            Responding as <strong id="not-you-name"></strong>.
+            <button type="button" class="link-btn" id="new-response">
+              Not you? Start a new response
+            </button>
+          </p>
+        </form>
+
+        <section id="responses-section" class="stack" hidden>
+          <div class="section-head">
+            <h2>Responses</h2>
+            <span id="resp-count" class="hint"></span>
+          </div>
+          <div id="grid" class="table-wrap"></div>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="/assets/js/event.js"></script>
+    <script src="/assets/vendor/snowstorm.js" defer></script>
+    <script src="/assets/js/snow.js" defer></script>
+  </body>
+</html>
