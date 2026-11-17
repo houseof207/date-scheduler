@@ -54,7 +54,7 @@ test/api.test.js     node:test suite
 ## Design
 
 - Colors live in `public/assets/styles.css` as two tokens, `--fg` and `--bg`, plus opacity shades of them (`--fg-60`, `--fg-10`, …). `--accent` is only used for the blurred glow at the bottom of the page and for error text.
-- The `nownownow.now` wordmark is drawn by `public/assets/js/logo.js`. Its stems grow from the small logo to the tall one on page load (skipped when the visitor prefers reduced motion).
+- The `nownownow.now` wordmark is drawn by `public/assets/js/logo.js`. Its stems grow from the small logo to the tall one on page load (skipped when the visitor prefers reduced motion). Hovering a character shrinks it back to the small size and lights it up in the foreground color (color only under reduced motion).
 
 ## Credits
 

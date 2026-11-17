@@ -44,7 +44,7 @@
   --fg-5: color-mix(in srgb, var(--fg) 5%, transparent);
 
   --bg-80: color-mix(in srgb, var(--bg) 80%, transparent);
-  --bg-shade: color-mix(in srgb, var(--bg) 72%, black); /* faint logo on event pages */
+  --bg-shade: color-mix(in srgb, var(--bg) 60%, black); /* faint logo on event pages */
 
   --error: color-mix(in srgb, var(--accent) 50%, white);
 
@@ -129,6 +129,8 @@ body::after {
 /* logo.js adds .is-faded to each character, one at a time, once they've all finished growing. */
 .logo path, .logo circle { transition: fill 1.2s ease; }
 .logo .is-faded { fill: var(--bg-shade); }
+/* Hovering a character lights it up quickly; leaving lets it fade back at the slower pace above. */
+.logo .is-hovered { fill: var(--fg); transition-duration: 0.2s; }
 .logo:focus-visible { outline-offset: 6px; }
 
 /* ---------- layout ---------- */

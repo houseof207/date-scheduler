@@ -1,7 +1,8 @@
 // The "nownownow.now" wordmark. The small and tall logos are the same glyphs
 // with longer vertical stems, so the paths are generated for any height and
 // the stems grow from small to tall on page load. The baseline stays put and
-// the extra height extends upward, past the top of the page.
+// the extra height extends upward, past the top of the page. Once grown, hovering
+// a character shrinks it back to the small logo and lights it up in the foreground color.
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const WIDTH = 1328;
@@ -11,6 +12,8 @@ const DELAY = 250; // before the first character starts growing
 const STAGGER = 90; // between one character starting and the next
 const DURATION = 1100; // for each character
 const FADE_STAGGER = 90; // between one character fading to the dark shade and the next
+const SHRINK_DURATION = 250; // for a hovered character to shrink back to the small logo
+const GROW_DURATION = 600; // for it to grow again once the cursor leaves
 
 const r = (n) => Math.round(n * 100) / 100;
 
@@ -61,22 +64,69 @@ function mount(container) {
   const glyphs = LAYOUT.map(([glyph, x]) => {
     const path = svgEl('path', {});
     svg.append(path);
-    return {
+    const g = {
       node: path,
+      left: x,
+      right: x + 102,
+      h: SMALL,
       draw(h) {
+        g.h = h;
         path.setAttribute('transform', `translate(${x} ${r(SMALL - h)})`);
         path.setAttribute('d', GLYPHS[glyph](h));
       },
     };
+    return g;
   });
   // The dot never grows, but it does fade.
   const dot = svgEl('circle', { cx: DOT.cx, cy: r(SMALL - DOT.r), r: DOT.r });
   svg.append(dot);
+
+  // Hover targets: one invisible column per character, the full tall height, meeting its neighbours
+  // halfway across each gap. The glyphs themselves would make poor targets: they change size under
+  // the cursor, and the o's have holes.
+  const characters = [...glyphs, { node: dot, left: DOT.cx - DOT.r, right: DOT.cx + DOT.r }]
+    .sort((a, b) => a.left - b.left);
+  const hits = svgEl('g', { fill: 'none', 'pointer-events': 'all' });
+  characters.forEach((c, i) => {
+    const prev = characters[i - 1];
+    const next = characters[i + 1];
+    const x0 = prev ? (prev.right + c.left) / 2 : c.left;
+    const x1 = next ? (c.right + next.left) / 2 : c.right;
+    c.hit = svgEl('rect', { x: r(x0), y: r(SMALL - TALL), width: r(x1 - x0), height: TALL });
+    hits.append(c.hit);
+  });
+  svg.append(hits);
+
   container.append(svg);
-  return { glyphs, dot };
+  return { glyphs, characters };
 }
 
 const ease = (t) => (t < 0.5 ? 8 * t ** 4 : 1 - (-2 * t + 2) ** 4 / 2); // easeInOutQuart
+
+// Height tweens, one per glyph at most, all driven by a single animation frame loop.
+// Starting a tween replaces the glyph's current one and carries on from its current height.
+const tweens = new Map();
+let frame = 0;
+
+function step(now) {
+  for (const [g, tw] of tweens) {
+    const t = Math.min(Math.max((now - tw.start) / tw.duration, 0), 1);
+    g.draw(tw.from + (tw.to - tw.from) * ease(t));
+    if (t === 1) {
+      tweens.delete(g);
+      tw.done();
+    }
+  }
+  frame = tweens.size ? requestAnimationFrame(step) : 0;
+}
+
+/** Animate a glyph's height to `to`. Resolves when it gets there (not if another tween replaces it). */
+function animate(g, to, duration, delay = 0) {
+  return new Promise((done) => {
+    tweens.set(g, { from: g.h, to, start: performance.now() + delay, duration, done });
+    frame ||= requestAnimationFrame(step);
+  });
+}
 
 /** A random permutation of 0..n-1 (Fisher–Yates). */
 function shuffledOrder(n) {
@@ -88,39 +138,45 @@ function shuffledOrder(n) {
   return order;
 }
 
+/** Hovering a character lights it up and, unless motion is reduced, shrinks it back to the small logo. */
+function enableHover(characters, reduced) {
+  for (const c of characters) {
+    c.hit.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch') return; // a tap is a click on the link, not a hover
+      c.node.classList.add('is-hovered');
+      if (c.draw && !reduced) animate(c, SMALL, SHRINK_DURATION);
+    });
+    c.hit.addEventListener('pointerleave', () => {
+      if (!c.node.classList.contains('is-hovered')) return;
+      c.node.classList.remove('is-hovered');
+      if (c.draw && !reduced) animate(c, TALL, GROW_DURATION);
+    });
+  }
+}
+
 for (const container of document.querySelectorAll('[data-logo]')) {
-  const { glyphs, dot } = mount(container);
-  const characters = [...glyphs.map((g) => g.node), dot];
+  const { glyphs, characters } = mount(container);
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   if (reduced) {
     for (const g of glyphs) g.draw(TALL);
-    for (const node of characters) node.classList.add('is-faded');
+    for (const c of characters) c.node.classList.add('is-faded');
+    enableHover(characters, true);
     continue;
   }
 
   // Characters fade to the dark shade in a fresh random order, one every FADE_STAGGER ms.
   const fadeOut = () => {
     shuffledOrder(characters.length).forEach((i, rank) => {
-      setTimeout(() => characters[i].classList.add('is-faded'), rank * FADE_STAGGER);
+      setTimeout(() => characters[i].node.classList.add('is-faded'), rank * FADE_STAGGER);
     });
   };
   for (const g of glyphs) g.draw(SMALL);
 
-  // Characters start growing in a random order, one every STAGGER ms.
+  // Characters start growing in a random order, one every STAGGER ms. Hovering only
+  // starts once they've all finished, so it never fights the intro.
   const order = shuffledOrder(glyphs.length);
-  const startAt = glyphs.map((_, i) => DELAY + order.indexOf(i) * STAGGER);
-  const end = DELAY + (glyphs.length - 1) * STAGGER + DURATION;
-
-  let t0;
-  const tick = (now) => {
-    t0 ??= now;
-    const elapsed = now - t0;
-    glyphs.forEach((g, i) => {
-      const t = Math.min(Math.max((elapsed - startAt[i]) / DURATION, 0), 1);
-      g.draw(SMALL + (TALL - SMALL) * ease(t));
-    });
-    if (elapsed < end) requestAnimationFrame(tick);
-    else fadeOut();
-  };
-  requestAnimationFrame(tick);
+  Promise.all(glyphs.map((g, i) => animate(g, TALL, DURATION, DELAY + order[i] * STAGGER))).then(() => {
+    fadeOut();
+    enableHover(characters, false);
+  });
 }
