@@ -1,6 +1,6 @@
 # Whenever
 
-A small, account-free scheduling app. Set up an event with a handful of dates and times, share a link, and let people mark which times work for them. Every response is saved so you can review it later.
+A small, account-free scheduling app. Set up an event with a handful of dates and times, share a link, and let people mark which times work for them. Events and their responses are deleted automatically two weeks after the event's last date.
 
 ## Run it
 
@@ -33,7 +33,8 @@ Setup-page options:
 
 ## Data & security notes
 
-- All data is in one JSON file (`data/db.json`), written atomically after every change. Back that file up to keep your history.
+- All data is in one JSON file (`data/db.json`), written atomically after every change.
+- **Retention:** an event is kept until the end of the day (UTC) two weeks after its latest date option, then deleted along with its responses. Expired events stop being served right away; the server removes them from disk on startup and once an hour. Editing the dates moves the deletion date. Creating or saving an event whose dates are all more than two weeks past is rejected. The window is `RETENTION_DAYS` in `lib/store.js`.
 - Setup tokens and per-response edit tokens are random, and only their SHA-256 hashes are stored.
 - Pages send a strict Content-Security-Policy and `Referrer-Policy: no-referrer`, so setup links don't leak through the `Referer` header. Event and setup pages are marked `noindex`.
 - The API only accepts `application/json` bodies, which blocks plain cross-site form posts.

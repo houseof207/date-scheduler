@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { Store, randomId, verifyToken } from './lib/store.js';
+import { RETENTION_DAYS, Store, deleteOn, isExpired, randomId, verifyToken } from './lib/store.js';
 import * as v from './lib/validate.js';
 
 const { HttpError, LIMITS } = v;
@@ -10,6 +10,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const ASSETS_DIR = path.join(PUBLIC_DIR, 'assets');
 const ID = '([A-Za-z0-9_-]{1,64})';
+const PURGE_INTERVAL_MS = 60 * 60 * 1000;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -56,6 +57,14 @@ async function readJSON(req, limit = 64 * 1024) {
   } catch {
     throw new HttpError(400, 'Invalid JSON body.');
   }
+}
+
+/** Rejects date lists that would make the event expire immediately. */
+function notExpired(fields) {
+  if (isExpired(fields.options)) {
+    throw new HttpError(400, `Add at least one date from the last ${RETENTION_DAYS} days or later.`);
+  }
+  return fields;
 }
 
 function must(value, message = 'Not found.') {
@@ -112,7 +121,7 @@ function publicView(ev) {
 
 function adminView(ev) {
   const { adminHash, responses, ...rest } = ev;
-  return { ...rest, responses: responses.map(({ editHash, ...r }) => r) };
+  return { ...rest, deleteOn: deleteOn(ev.options), responses: responses.map(({ editHash, ...r }) => r) };
 }
 
 function csvCell(value) {
@@ -142,7 +151,7 @@ async function handleApi(req, res, url, store) {
   // Create an event
   if (p === '/api/events' && method === 'POST') {
     const body = await readJSON(req);
-    const fields = v.eventFields(body, [], () => randomId(6));
+    const fields = notExpired(v.eventFields(body, [], () => randomId(6)));
     const { event, adminToken } = await store.createEvent(fields);
     return sendJSON(res, 201, { id: event.id, adminToken });
   }
@@ -188,7 +197,7 @@ async function handleApi(req, res, url, store) {
     if (method === 'PUT') {
       const body = await readJSON(req);
       const patch = {
-        ...v.eventFields(body, ev.options, () => randomId(6)),
+        ...notExpired(v.eventFields(body, ev.options, () => randomId(6))),
         showResponses: v.bool(body.showResponses, 'showResponses'),
         closed: v.bool(body.closed, 'closed'),
       };
@@ -249,6 +258,10 @@ export async function createApp({ dataFile } = {}) {
   const store = new Store(dataFile ?? process.env.DATA_FILE ?? path.join(ROOT, 'data', 'db.json'));
   await store.load();
 
+  // Remove events that have passed their retention window.
+  const purge = setInterval(() => store.purgeExpired().catch((err) => console.error('Purge failed:', err)), PURGE_INTERVAL_MS);
+  purge.unref();
+
   const server = http.createServer(async (req, res) => {
     for (const [k, val] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, val);
     let url;
@@ -269,6 +282,7 @@ export async function createApp({ dataFile } = {}) {
     }
   });
 
+  server.on('close', () => clearInterval(purge));
   return { server, store };
 }
 

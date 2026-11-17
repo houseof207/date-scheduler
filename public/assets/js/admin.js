@@ -5,6 +5,7 @@ import {
   createOptionsEditor,
   el,
   fillTimezoneSelect,
+  formatDate,
   myEvents,
   plural,
   renderEyebrow,
@@ -52,6 +53,9 @@ function renderHeader() {
   $('open-public').href = publicUrl;
   $('admin-link').value = `${location.origin}/admin/${token}`;
   $('export').href = `${base}/export.csv`;
+  $('auto-delete').textContent = event.deleteOn
+    ? `Otherwise it's deleted automatically after ${formatDate(event.deleteOn, { weekday: 'long', year: true })}, two weeks after the last date.`
+    : '';
 }
 
 function renderResults() {

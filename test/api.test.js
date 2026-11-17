@@ -4,9 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { createApp } from '../server.js';
-import { Store } from '../lib/store.js';
+import { Store, deleteOn, isExpired } from '../lib/store.js';
 
 let server, store, baseUrl, dir, dataFile;
+// Sample dates are next year so they never age past the retention window.
+const Y = new Date().getUTCFullYear() + 1;
+const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 864e5).toISOString().slice(0, 10);
 
 before(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'whenever-test-'));
@@ -43,10 +46,10 @@ const sampleEvent = {
   description: 'Somewhere nice',
   timezone: 'America/New_York',
   options: [
-    { date: '2026-12-03', start: '19:00', end: '21:00' },
-    { date: '2026-12-01', start: '18:00', end: '20:00' },
-    { date: '2026-12-02', start: '', end: '' },
-    { date: '2026-12-01', start: '18:00', end: '20:00' }, // duplicate, dropped
+    { date: `${Y}-12-03`, start: '19:00', end: '21:00' },
+    { date: `${Y}-12-01`, start: '18:00', end: '20:00' },
+    { date: `${Y}-12-02`, start: '', end: '' },
+    { date: `${Y}-12-01`, start: '18:00', end: '20:00' }, // duplicate, dropped
   ],
 };
 
@@ -66,7 +69,7 @@ describe('events', () => {
     event = res.data;
     assert.equal(event.title, 'Team dinner');
     assert.equal(event.options.length, 3);
-    assert.deepEqual(event.options.map((o) => o.date), ['2026-12-01', '2026-12-02', '2026-12-03']);
+    assert.deepEqual(event.options.map((o) => o.date), [`${Y}-12-01`, `${Y}-12-02`, `${Y}-12-03`]);
     assert.equal(event.showResponses, true);
     assert.ok(!JSON.stringify(event).includes('adminHash'));
   });
@@ -75,9 +78,9 @@ describe('events', () => {
     for (const body of [
       { ...sampleEvent, title: '' },
       { ...sampleEvent, options: [] },
-      { ...sampleEvent, options: [{ date: '2026-02-30' }] },
-      { ...sampleEvent, options: [{ date: '2026-12-01', start: '10:00', end: '09:00' }] },
-      { ...sampleEvent, options: [{ date: '2026-12-01', end: '09:00' }] },
+      { ...sampleEvent, options: [{ date: `${Y}-02-30` }] },
+      { ...sampleEvent, options: [{ date: `${Y}-12-01`, start: '10:00', end: '09:00' }] },
+      { ...sampleEvent, options: [{ date: `${Y}-12-01`, end: '09:00' }] },
       { ...sampleEvent, timezone: 'Mars/Olympus' },
     ]) {
       const res = await call('POST', '/api/events', body);
@@ -149,7 +152,7 @@ describe('events', () => {
       title: 'Team dinner v2',
       description: '',
       timezone: 'Europe/London',
-      options: [...kept, { date: '2026-12-10', start: '12:00', end: '' }],
+      options: [...kept, { date: `${Y}-12-10`, start: '12:00', end: '' }],
       showResponses: false,
       closed: false,
     });
@@ -190,7 +193,7 @@ describe('events', () => {
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type'), /text\/csv/);
     assert.match(res.headers.get('content-disposition'), /team-dinner-v2-responses\.csv/);
-    assert.match(res.data, /^\uFEFF?Name,2026-12-02,/);
+    assert.match(res.data, new RegExp(`^\uFEFF?Name,${Y}-12-02,`));
     assert.match(res.data, /'=cmd\(\)/);
     assert.match(res.data, /\r\nTotal,/);
   });
@@ -213,6 +216,57 @@ describe('events', () => {
     assert.equal((await call('DELETE', `/api/admin/${adminToken}`)).status, 204);
     assert.equal((await call('GET', `/api/events/${id}`)).status, 404);
     assert.equal((await call('GET', `/api/admin/${adminToken}`)).status, 404);
+  });
+});
+
+describe('expiry', () => {
+  test('events are kept until two weeks after their last date', () => {
+    const options = [{ date: '2026-03-01' }, { date: '2026-03-20' }, { date: '2026-03-05' }];
+    assert.equal(deleteOn(options), '2026-04-03');
+    assert.equal(isExpired(options, Date.parse('2026-04-03T23:59:59Z')), false);
+    assert.equal(isExpired(options, Date.parse('2026-04-04T00:00:00Z')), true);
+  });
+
+  test('setup page reports the deletion date', async () => {
+    const { data } = await call('POST', '/api/events', sampleEvent);
+    const admin = await call('GET', `/api/admin/${data.adminToken}`);
+    assert.equal(admin.data.deleteOn, `${Y}-12-17`);
+  });
+
+  test('rejects dates that are all past the retention window', async () => {
+    const res = await call('POST', '/api/events', { ...sampleEvent, options: [{ date: isoDay(-20) }] });
+    assert.equal(res.status, 400);
+    assert.match(res.data.error, /last 14 days/);
+    const recent = await call('POST', '/api/events', { ...sampleEvent, options: [{ date: isoDay(-10) }] });
+    assert.equal(recent.status, 201);
+  });
+
+  test('expired events disappear and are purged from disk', async () => {
+    const file = path.join(dir, 'expiry.json');
+    const s = new Store(file);
+    const { event: old, adminToken } = await s.createEvent({ title: 'Old', description: '', timezone: 'UTC', options: [{ id: 'a', date: isoDay(-3), start: '', end: '' }] });
+    const { event: fresh } = await s.createEvent({ title: 'Fresh', description: '', timezone: 'UTC', options: [{ id: 'b', date: isoDay(10), start: '', end: '' }] });
+
+    // Pretend the clock is three weeks ahead.
+    assert.equal(await s.purgeExpired(Date.now() + 21 * 864e5), 1);
+    assert.equal(s.getEvent(old.id), null);
+    assert.equal(s.getEventByAdminToken(adminToken), null);
+    assert.ok(s.getEvent(fresh.id));
+
+    await s.flush();
+    const raw = JSON.parse(await fs.readFile(file, 'utf8'));
+    assert.deepEqual(Object.keys(raw.events), [fresh.id]);
+  });
+
+  test('expired events are dropped when the data file loads', async () => {
+    const file = path.join(dir, 'load.json');
+    const ev = { id: 'x', adminHash: 'h', title: 'Old', options: [{ id: 'a', date: isoDay(-30) }], responses: [] };
+    await fs.writeFile(file, JSON.stringify({ version: 1, events: { x: ev } }));
+    const s = new Store(file);
+    await s.load();
+    await s.flush();
+    assert.equal(s.getEvent('x'), null);
+    assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')).events, {});
   });
 });
 
