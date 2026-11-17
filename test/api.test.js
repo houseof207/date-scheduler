@@ -290,6 +290,9 @@ describe('pages', () => {
   test('serves assets and blocks path traversal', async () => {
     assert.equal((await call('GET', '/assets/styles.css')).status, 200);
     assert.equal((await call('GET', '/assets/js/common.js')).status, 200);
+    const card = await call('GET', '/assets/share-card.jpg');
+    assert.equal(card.status, 200);
+    assert.equal(card.headers.get('content-type'), 'image/jpeg');
     assert.equal((await call('GET', '/assets/..%2F..%2Fserver.js')).status, 404);
     assert.equal((await call('GET', '/assets/%2e%2e/index.html')).status, 404);
     assert.equal((await call('GET', '/nope')).status, 404);
