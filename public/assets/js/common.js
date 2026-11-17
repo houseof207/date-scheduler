@@ -82,7 +82,21 @@ export function writeLocal(key, value) {
   }
 }
 
-const MY_EVENTS = 'whenever:my-events';
+// One-time move of data saved under the app's previous name. Safe to delete
+// once events created before the rename have expired.
+try {
+  const OLD_PREFIX = 'whenever:';
+  for (const key of Object.keys(localStorage)) {
+    if (!key.startsWith(OLD_PREFIX)) continue;
+    const newKey = `nownownow:${key.slice(OLD_PREFIX.length)}`;
+    if (localStorage.getItem(newKey) == null) localStorage.setItem(newKey, localStorage.getItem(key));
+    localStorage.removeItem(key);
+  }
+} catch {
+  /* storage unavailable */
+}
+
+const MY_EVENTS = 'nownownow:my-events';
 export const myEvents = {
   list: () => readLocal(MY_EVENTS, []),
   save(entry) {

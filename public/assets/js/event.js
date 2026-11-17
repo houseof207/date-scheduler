@@ -15,7 +15,7 @@ import {
 } from './common.js';
 
 const eventId = decodeURIComponent(location.pathname.split('/')[2] || '');
-const mineKey = `whenever:response:${eventId}`;
+const mineKey = `nownownow:response:${eventId}`;
 
 const $ = (id) => document.getElementById(id);
 const form = $('response-form');

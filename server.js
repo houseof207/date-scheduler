@@ -292,7 +292,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const port = Number(process.env.PORT) || 3000;
   const host = process.env.HOST || '127.0.0.1';
   const { server, store } = await createApp();
-  server.listen(port, host, () => console.log(`Whenever running at http://${host}:${port}`));
+  server.listen(port, host, () => console.log(`nownownow.now running at http://${host}:${port}`));
 
   const shutdown = () => {
     server.close();

@@ -12,7 +12,7 @@ const Y = new Date().getUTCFullYear() + 1;
 const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 864e5).toISOString().slice(0, 10);
 
 before(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'whenever-test-'));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'nownownow-test-'));
   dataFile = path.join(dir, 'db.json');
   ({ server, store } = await createApp({ dataFile }));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

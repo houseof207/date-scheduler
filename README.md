@@ -1,4 +1,4 @@
-# Whenever
+# nownownow.now
 
 A small, account-free scheduling app. Set up an event with a handful of dates and times, share a link, and let people mark which times work for them. Events and their responses are deleted automatically two weeks after the event's last date.
 
