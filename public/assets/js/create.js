@@ -1,4 +1,5 @@
 import {
+  announce,
   api,
   browserTimezone,
   createOptionsEditor,
@@ -34,15 +35,16 @@ form.addEventListener('submit', async (e) => {
 
   const title = titleInput.value.trim();
   if (!title) {
-    showError(errorBox, 'Give your event a name.');
+    showError(errorBox, 'Give your event a name.', titleInput);
     titleInput.focus();
     return;
   }
   editor.commitPending();
   const options = editor.getOptions();
   if (!options.length) {
-    showError(errorBox, 'Add at least one date.');
-    document.getElementById('opt-date').focus();
+    const dateInput = document.getElementById('opt-date');
+    showError(errorBox, 'Add at least one date.', dateInput);
+    dateInput.focus();
     return;
   }
 
@@ -70,7 +72,7 @@ function renderMyEvents() {
   const events = myEvents.list();
   section.hidden = events.length === 0;
   list.replaceChildren(
-    ...events.map((ev) =>
+    ...events.map((ev, index) =>
       el(
         'li',
         {},
@@ -96,6 +98,10 @@ function renderMyEvents() {
                 if (confirm('Remove this event from your list? The event itself is not deleted, but make sure you have the setup link saved somewhere.')) {
                   myEvents.remove(ev.id);
                   renderMyEvents();
+                  announce(`Removed ${ev.title} from your list`);
+                  // The button that was pressed is gone: move focus to the next one, or to the event name.
+                  const buttons = list.querySelectorAll('.icon-btn');
+                  (buttons[Math.min(index, buttons.length - 1)] ?? titleInput).focus();
                 }
               },
             },

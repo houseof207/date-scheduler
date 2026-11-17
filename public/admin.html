@@ -98,7 +98,7 @@
 
         <section class="section">
           <div class="section-head">
-            <h2>Results</h2>
+            <h2 id="results-heading" tabindex="-1">Results</h2>
             <div class="meta">
               <button type="button" id="refresh" class="text-link">Refresh</button>
               <a id="export" class="text-link" download>Export CSV</a>
@@ -171,21 +171,11 @@
               </div>
             </div>
             <div class="form-actions">
-              <p
-                id="settings-error"
-                class="form-error"
-                hidden
-                aria-live="polite"
-              ></p>
+              <p id="settings-error" class="form-error" hidden></p>
               <button id="save-btn" class="btn btn-primary btn-lg" type="submit">
                 Save Changes
               </button>
-              <p
-                id="save-status"
-                class="saved-note"
-                hidden
-                aria-live="polite"
-              ></p>
+              <p id="save-status" class="saved-note" hidden></p>
             </div>
           </form>
         </section>

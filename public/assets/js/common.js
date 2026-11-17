@@ -17,17 +17,36 @@ export function el(tag, props = {}, ...children) {
   return node;
 }
 
+// ---------- screen reader announcements ----------
+// Two visually hidden live regions, added on page load. A live region that appears along with its
+// text is often not read out, so messages go into these, which are already in place.
+const liveRegions = {
+  polite: el('div', { class: 'sr-only', role: 'status' }),
+  assertive: el('div', { class: 'sr-only', role: 'alert' }),
+};
+document.body.append(liveRegions.polite, liveRegions.assertive);
+
+/** Reads `message` out to screen reader users. Errors should be `assertive`. */
+export function announce(message, { assertive = false } = {}) {
+  const region = assertive ? liveRegions.assertive : liveRegions.polite;
+  region.textContent = '';
+  // Filled on a later tick, so the same message twice in a row is still read out.
+  setTimeout(() => (region.textContent = message), 50);
+}
+
 let toastTimer;
-export function toast(message) {
+/** A brief message at the bottom of the screen. Errors stay up longer, long enough to read. */
+export function toast(message, { error = false } = {}) {
   let node = document.querySelector('.toast');
   if (!node) {
-    node = el('div', { class: 'toast', role: 'status', 'aria-live': 'polite' });
+    node = el('div', { class: 'toast', 'aria-hidden': 'true' }); // read out by announce() instead
     document.body.append(node);
   }
   node.textContent = message;
   node.classList.add('show');
+  announce(message, { assertive: error });
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => node.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => node.classList.remove('show'), error ? 6000 : 2200);
 }
 
 export async function copyText(text) {
@@ -39,9 +58,38 @@ export async function copyText(text) {
   }
 }
 
-export function showError(node, message) {
+function setDescribedBy(field, id, on) {
+  const ids = new Set((field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+  if (on) ids.add(id);
+  else ids.delete(id);
+  if (ids.size) field.setAttribute('aria-describedby', [...ids].join(' '));
+  else field.removeAttribute('aria-describedby');
+}
+
+const errorFields = new WeakMap(); // error node -> the field it's currently attached to
+
+/**
+ * Shows an error in `node` (which needs an id), or clears it when `message` is empty.
+ * With `field`, the field is marked invalid and described by the error, so focusing it (the caller's
+ * next step) reads the error out. Without a field, the error is announced straight away.
+ */
+export function showError(node, message, field) {
   node.textContent = message || '';
   node.hidden = !message;
+  const previous = errorFields.get(node);
+  if (previous) {
+    previous.removeAttribute('aria-invalid');
+    setDescribedBy(previous, node.id, false);
+    errorFields.delete(node);
+  }
+  if (!message) return;
+  if (field) {
+    field.setAttribute('aria-invalid', 'true');
+    setDescribedBy(field, node.id, true);
+    errorFields.set(node, field);
+  } else {
+    announce(message, { assertive: true });
+  }
 }
 
 // ---------- API ----------
@@ -379,7 +427,7 @@ export function createOptionsEditor(root, initial = [], { onChange, plusButton =
     input.addEventListener('input', syncEmpty);
     input.addEventListener('change', syncEmpty);
   }
-  const error = el('p', { class: 'form-error', hidden: true, 'aria-live': 'polite' });
+  const error = el('p', { id: 'opt-error', class: 'form-error', hidden: true });
   const list = el('div');
 
   root.replaceChildren(
@@ -420,7 +468,7 @@ export function createOptionsEditor(root, initial = [], { onChange, plusButton =
     showError(error, '');
     const fail = (msg, focus) => {
       if (!quiet) {
-        showError(error, msg);
+        showError(error, msg, focus);
         focus?.focus();
       }
       return false;
@@ -436,15 +484,21 @@ export function createOptionsEditor(root, initial = [], { onChange, plusButton =
     sortOptions(options);
     render();
     onChange?.();
+    if (!quiet) announce(`Added ${formatOption(option)}`);
     // Keep the inputs filled so adding the same time on another day (or another
     // time on the same day) only needs one field changed.
     return true;
   }
 
   function remove(option) {
+    const index = options.indexOf(option);
     options = options.filter((o) => o !== option);
     render();
     onChange?.();
+    announce(`Removed ${formatOption(option)}`);
+    // The button that was pressed is gone: move focus to the next one, or back to the date field.
+    const buttons = list.querySelectorAll('.chip .icon-btn');
+    (buttons[Math.min(index, buttons.length - 1)] ?? date).focus();
   }
 
   function render() {
@@ -529,9 +583,10 @@ export function renderGrid(event, { highlightId, onDelete } = {}) {
         { scope: 'col', class: bestCls(o) },
         el('span', { class: 'col-date' }, formatDate(o.date)),
         formatTimeRange(o),
+        best.has(o.id) ? el('span', { class: 'sr-only' }, ' (most available)') : null,
       ),
     ),
-    onDelete ? el('th', { class: 'actions-col' }, el('span', { class: 'sr-only' })) : null,
+    onDelete ? el('th', { scope: 'col', class: 'actions-col' }, el('span', { class: 'sr-only' }, 'Actions')) : null,
   );
 
   const rows = event.responses.map((r) => {
@@ -583,7 +638,14 @@ export function renderGrid(event, { highlightId, onDelete } = {}) {
     onDelete ? el('td', { class: 'actions-col' }) : null,
   );
 
-  return el('table', { class: 'grid' }, el('thead', {}, head), el('tbody', {}, rows), el('tfoot', {}, foot));
+  return el(
+    'table',
+    { class: 'grid' },
+    el('caption', { class: 'sr-only' }, 'Who is available at each time'),
+    el('thead', {}, head),
+    el('tbody', {}, rows),
+    el('tfoot', {}, foot),
+  );
 }
 
 /** Times ranked by how many people picked them, with a bar per time. Returns null when nobody has responded. */
@@ -608,7 +670,12 @@ export function renderRanking(event) {
         el('div', { class: 'rank-date' }, formatDate(o.date)),
         el('div', { class: 'rank-time' }, formatTimeRange(o)),
         el('div', { class: 'rank-badge' }, top ? el('span', { class: 'badge' }, count === total ? 'Everyone' : 'Best') : null),
-        el('div', { class: 'rank-count', 'aria-label': `${count} of ${total} available` }, `${count}/${total}`),
+        el(
+          'div',
+          { class: 'rank-count' },
+          el('span', { 'aria-hidden': 'true' }, `${count}/${total}`),
+          el('span', { class: 'sr-only' }, `${count} of ${total} available`),
+        ),
         el('div', { class: 'rank-bar', 'aria-hidden': 'true' }, fill),
         names.length ? el('div', { class: 'rank-names' }, names.map((n) => el('span', {}, n))) : null,
       );

@@ -1,4 +1,5 @@
 import {
+  announce,
   api,
   copyText,
   countVotes,
@@ -26,7 +27,7 @@ async function load({ resultsOnly = false } = {}) {
   try {
     event = await api('GET', base);
   } catch (err) {
-    if (resultsOnly) return toast(err.message);
+    if (resultsOnly) return toast(err.message, { error: true });
     $('loading').hidden = true;
     $('not-found').hidden = false;
     if (err.status !== 404) $('not-found-msg').textContent = err.message;
@@ -78,12 +79,16 @@ function renderSettings() {
 
 async function deleteResponse(response) {
   if (!confirm(`Delete ${response.name}'s response? This can't be undone.`)) return;
+  const index = event.responses.indexOf(response);
   try {
     await api('DELETE', `${base}/responses/${encodeURIComponent(response.id)}`);
     toast('Response deleted');
     await load({ resultsOnly: true });
+    // The button that was pressed is gone: move focus to the next row's, or to the Results heading.
+    const buttons = $('grid').querySelectorAll('.actions-col button');
+    (buttons[Math.min(index, buttons.length - 1)] ?? $('results-heading')).focus();
   } catch (err) {
-    toast(err.message);
+    toast(err.message, { error: true });
   }
 }
 
@@ -96,8 +101,14 @@ $('settings-form').addEventListener('submit', async (e) => {
 
   editor.commitPending();
   const options = editor.getOptions();
-  if (!$('title').value.trim()) return showError(errorBox, 'Give your event a name.');
-  if (!options.length) return showError(errorBox, 'Add at least one date.');
+  if (!$('title').value.trim()) {
+    showError(errorBox, 'Give your event a name.', $('title'));
+    return $('title').focus();
+  }
+  if (!options.length) {
+    showError(errorBox, 'Add at least one date.', $('opt-date'));
+    return $('opt-date').focus();
+  }
 
   // Warn if removing times that people already picked.
   const keptIds = new Set(options.map((o) => o.id).filter(Boolean));
@@ -126,6 +137,7 @@ $('settings-form').addEventListener('submit', async (e) => {
     myEvents.save({ ...myEvents.list().find((x) => x.id === event.id), id: event.id, adminToken: token, title: event.title });
     status.replaceChildren(el('strong', {}, 'Saved.'));
     status.hidden = false;
+    announce('Saved.');
   } catch (err) {
     showError(errorBox, err.message);
   } finally {
@@ -141,7 +153,7 @@ $('delete-event').addEventListener('click', async () => {
     myEvents.remove(event.id);
     location.href = '/';
   } catch (err) {
-    toast(err.message);
+    toast(err.message, { error: true });
   }
 });
 

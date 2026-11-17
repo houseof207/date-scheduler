@@ -1,4 +1,5 @@
 import {
+  announce,
   api,
   el,
   formatDate,
@@ -90,7 +91,7 @@ function renderSlots() {
       el(
         'div',
         { class: 'slot-group field-row' },
-        el('h3', { class: 'slot-group-date' }, formatDate(date)),
+        el('h2', { class: 'slot-group-date' }, formatDate(date)),
         el(
           'div',
           { class: 'slots' },
@@ -142,7 +143,7 @@ form.addEventListener('submit', async (e) => {
   showError(errorBox, '');
   const name = nameInput.value.trim();
   if (!name) {
-    showError(errorBox, 'Please enter your name.');
+    showError(errorBox, 'Please enter your name.', nameInput);
     nameInput.focus();
     return;
   }
@@ -167,6 +168,7 @@ form.addEventListener('submit', async (e) => {
       ' You can come back to this page in this browser to change your answers.',
     );
     savedNote.hidden = false;
+    announce(savedNote.textContent);
   } catch (err) {
     showError(errorBox, err.message);
     // The organizer may have closed the event or changed the times in the meantime.
