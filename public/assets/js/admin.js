@@ -5,13 +5,12 @@ import {
   createOptionsEditor,
   el,
   fillTimezoneSelect,
-  formatDate,
-  formatTimeRange,
   myEvents,
   plural,
+  renderEyebrow,
   renderGrid,
+  renderRanking,
   showError,
-  timezoneName,
   toast,
 } from './common.js';
 
@@ -44,10 +43,9 @@ async function load({ resultsOnly = false } = {}) {
 }
 
 function renderHeader() {
-  document.title = `Setup: ${event.title} · Whenever`;
+  document.title = `Setup: ${event.title} · nownownow.now`;
   $('ev-title').textContent = event.title;
-  const status = event.closed ? 'Closed' : 'Open for responses';
-  $('ev-meta').textContent = `${status} · ${timezoneName(event.timezone)}`;
+  renderEyebrow(event, { pill: $('status-pill'), tz: $('tz-note') });
 
   const publicUrl = `${location.origin}/e/${event.id}`;
   $('public-link').value = publicUrl;
@@ -57,46 +55,10 @@ function renderHeader() {
 }
 
 function renderResults() {
-  $('resp-count').textContent = plural(event.responses.length, 'response');
+  $('resp-count').textContent = plural(event.responses.length, 'Response');
+  const ranking = renderRanking(event);
+  $('ranking').replaceChildren(...(ranking ? [ranking] : []));
   $('grid').replaceChildren(renderGrid(event, { onDelete: deleteResponse }));
-
-  const ranking = $('ranking');
-  if (!event.responses.length) {
-    ranking.hidden = true;
-    return;
-  }
-  ranking.hidden = false;
-  const { counts, max } = countVotes(event);
-  const total = event.responses.length;
-  const ranked = [...event.options].sort((a, b) => counts.get(b.id) - counts.get(a.id)); // stable: ties stay chronological
-
-  ranking.replaceChildren(
-    el(
-      'div',
-      { class: 'ranking' },
-      ranked.map((o) => {
-        const count = counts.get(o.id);
-        const names = event.responses.filter((r) => r.selections.includes(o.id)).map((r) => r.name);
-        const top = count > 0 && count === max;
-        const fill = el('span');
-        fill.style.width = `${(count / total) * 100}%`; // CSSOM, so it isn't blocked by the CSP
-        return el(
-          'div',
-          { class: `rank-row${top ? ' top' : ''}` },
-          el(
-            'div',
-            { class: 'rank-label' },
-            formatDate(o.date),
-            el('span', { class: 'muted' }, ` · ${formatTimeRange(o)}`),
-            top ? el('span', { class: 'badge' }, count === total ? 'Everyone' : 'Best') : null,
-          ),
-          el('div', { class: 'rank-count' }, `${count}/${total}`),
-          el('div', { class: 'rank-bar' }, fill),
-          names.length ? el('div', { class: 'rank-names' }, names.join(', ')) : null,
-        );
-      }),
-    ),
-  );
 }
 
 function renderSettings() {

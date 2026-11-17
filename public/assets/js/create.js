@@ -15,7 +15,17 @@ const tzSelect = document.getElementById('timezone');
 const errorBox = document.getElementById('create-error');
 const submitBtn = document.getElementById('create-btn');
 
-const editor = createOptionsEditor(document.getElementById('options-editor'));
+const editor = createOptionsEditor(document.getElementById('options-editor'), [], { plusButton: true });
+
+// Details grows with its text instead of scrolling.
+function autosize() {
+  descInput.style.height = 'auto';
+  descInput.style.height = `${descInput.scrollHeight}px`;
+}
+descInput.addEventListener('input', autosize);
+window.addEventListener('resize', autosize);
+document.fonts?.ready.then(autosize);
+autosize();
 fillTimezoneSelect(tzSelect, browserTimezone());
 
 form.addEventListener('submit', async (e) => {
@@ -50,7 +60,7 @@ form.addEventListener('submit', async (e) => {
   } catch (err) {
     showError(errorBox, err.message);
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Create event';
+    submitBtn.textContent = 'Create Event';
   }
 });
 
@@ -73,8 +83,8 @@ function renderMyEvents() {
         el(
           'div',
           { class: 'ev-links' },
-          el('a', { class: 'btn btn-ghost btn-sm', href: `/e/${ev.id}` }, 'Public page'),
-          el('a', { class: 'btn btn-secondary btn-sm', href: `/admin/${ev.adminToken}` }, 'Setup'),
+          el('a', { class: 'btn btn-outline btn-sm', href: `/e/${ev.id}` }, 'Public page'),
+          el('a', { class: 'btn btn-primary btn-sm', href: `/admin/${ev.adminToken}` }, 'Setup'),
           el(
             'button',
             {

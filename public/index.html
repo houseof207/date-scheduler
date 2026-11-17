@@ -3,75 +3,79 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Whenever · Find a time to celebrate</title>
+    <title>nownownow.now · Find a time that works</title>
     <meta
       name="description"
       content="Share a few dates and times, collect everyone's availability. No accounts."
     />
+    <meta name="theme-color" content="#071704" />
+    <script src="/assets/js/colors.js"></script>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/assets/fonts/hanken-grotesk-latin-wght.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body>
-    <header class="site-header"></header>
+    <header class="site-header">
+      <a class="logo" href="/" aria-label="nownownow.now home" data-logo></a>
+    </header>
 
-    <main class="container stack-lg">
-      <section class="hero">
-        <h1>Find a time to <em>celebrate.</em></h1>
-        <p>
-          Planning a holiday dinner, cookie swap, or gift exchange? Add a few
-          dates, share the link, and see when everyone is free. No accounts, no
-          sign-ups.
-        </p>
+    <main class="container container-narrow">
+      <h1 class="sr-only">Find a time that works</h1>
+
+      <section>
+        <h2 class="sr-only">Create an event</h2>
+        <form id="create-form" class="form form-inline" novalidate>
+          <div>
+            <label class="sr-only" for="title">Event name</label>
+            <input
+              id="title"
+              type="text"
+              maxlength="120"
+              placeholder="Event Name"
+              autocomplete="off"
+              required
+            />
+          </div>
+          <div>
+            <label class="sr-only" for="description">Details (optional)</label>
+            <textarea
+              id="description"
+              rows="1"
+              maxlength="1000"
+              placeholder="Details"
+            ></textarea>
+          </div>
+          <div
+            id="options-editor"
+            class="field-control"
+            role="group"
+            aria-label="Dates and times"
+          ></div>
+          <div>
+            <label class="sr-only" for="timezone">Time zone</label>
+            <div class="select"><select id="timezone"></select></div>
+          </div>
+          <div class="form-actions">
+            <p id="create-error" class="form-error" hidden aria-live="polite"></p>
+            <button id="create-btn" class="btn btn-primary btn-lg" type="submit">
+              Create Event
+            </button>
+          </div>
+        </form>
       </section>
 
-      <form id="create-form" class="card stack" novalidate>
-        <div class="field">
-          <label for="title">Event name</label>
-          <input
-            id="title"
-            type="text"
-            maxlength="120"
-            placeholder="Holiday dinner"
-            autocomplete="off"
-            required
-          />
+      <section id="my-events" class="section" hidden>
+        <h2 class="section-title">Your Events</h2>
+        <div class="field-row">
+          <p class="field-label">Remembered in this browser only</p>
+          <div class="field-control">
+            <ul id="my-events-list" class="event-list"></ul>
+          </div>
         </div>
-        <div class="field">
-          <label for="description"
-            >Details <span class="optional">· optional</span></label
-          >
-          <textarea
-            id="description"
-            rows="3"
-            maxlength="1000"
-            placeholder="Location, what to bring, gift exchange rules…"
-          ></textarea>
-        </div>
-        <div class="field">
-          <span class="label">Dates &amp; times</span>
-          <div id="options-editor"></div>
-        </div>
-        <div class="field">
-          <label for="timezone">Time zone</label>
-          <select id="timezone"></select>
-        </div>
-        <p id="create-error" class="form-error" hidden aria-live="polite"></p>
-        <button id="create-btn" class="btn btn-primary btn-block" type="submit">
-          Create event
-        </button>
-      </form>
-
-      <section id="my-events" class="stack" hidden>
-        <div class="section-head">
-          <h2>Your events</h2>
-          <span class="hint">Remembered in this browser only</span>
-        </div>
-        <div class="card"><ul id="my-events-list" class="event-list"></ul></div>
       </section>
     </main>
 
+    <script type="module" src="/assets/js/logo.js"></script>
     <script type="module" src="/assets/js/create.js"></script>
-    <script src="/assets/vendor/snowstorm.js" defer></script>
-    <script src="/assets/js/snow.js" defer></script>
   </body>
 </html>

@@ -4,178 +4,210 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Setup · Whenever</title>
+    <title>Setup · nownownow.now</title>
+    <meta name="theme-color" content="#071704" />
+    <script src="/assets/js/colors.js"></script>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/assets/fonts/hanken-grotesk-latin-wght.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body>
     <header class="site-header">
-      <span class="header-tag">Private setup</span>
+      <a class="logo" href="/" aria-label="nownownow.now home" data-logo></a>
     </header>
 
     <main class="container">
       <p id="loading" class="loading">Loading…</p>
 
-      <div id="not-found" class="card center-card" hidden>
+      <div id="not-found" class="center-card" hidden>
         <h1>Setup link not recognized</h1>
         <p id="not-found-msg">
           Check that you copied the whole link. If the event was deleted, it
           can't be recovered.
         </p>
-        <a class="btn btn-secondary" href="/">Create a new event</a>
+        <a class="btn btn-outline btn-lg" href="/">Create a new event</a>
       </div>
 
-      <div id="admin" class="stack-lg" hidden>
-        <div id="welcome" class="banner banner-accent" hidden>
-          <strong>Your event is ready.</strong> Bookmark this page. It's your
-          private setup link and the only way back here.
-        </div>
-
-        <header class="event-header">
-          <p id="ev-meta" class="eyebrow"></p>
+      <div id="admin" hidden>
+        <header class="page-head">
+          <div class="eyebrow">
+            <span id="status-pill" class="pill"></span>
+            <span id="tz-note" class="tz"></span>
+          </div>
           <h1 id="ev-title"></h1>
+          <p id="welcome" class="page-note" hidden>
+            <strong>Your event is ready.</strong> Bookmark this page. It's your
+            private setup link and the only way back here.
+          </p>
         </header>
 
-        <section class="card stack">
-          <h2>Share</h2>
-          <div class="field">
-            <label for="public-link">Public link</label>
-            <div class="copy-row">
-              <input id="public-link" type="text" readonly />
-              <button
-                type="button"
-                class="btn btn-primary"
-                data-copy="public-link"
-              >
-                Copy
-              </button>
-              <a
-                id="open-public"
-                class="btn btn-secondary"
-                target="_blank"
-                rel="noopener"
-                >Open</a
-              >
+        <section class="section">
+          <h2 class="section-title">Links</h2>
+          <div class="form">
+            <div class="field-row">
+              <label class="field-label" for="public-link">Public Link</label>
+              <div class="field-control">
+                <div class="copy-row">
+                  <input id="public-link" type="text" readonly />
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-icon"
+                    data-copy="public-link"
+                    title="Copy public link"
+                    aria-label="Copy public link"
+                  >
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h.5"/></svg>
+                  </button>
+                  <a
+                    id="open-public"
+                    class="btn btn-outline btn-icon"
+                    target="_blank"
+                    rel="noopener"
+                    title="Open public page"
+                    aria-label="Open public page in a new tab"
+                  >
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 3h6v6M17 3l-8 8M14 12v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"/></svg>
+                  </a>
+                </div>
+                <p class="hint">Send this to everyone you're scheduling with.</p>
+              </div>
             </div>
-            <p class="hint">Send this to everyone you're scheduling with.</p>
-          </div>
-          <div class="field">
-            <label for="admin-link"
-              >Setup link
-              <span class="optional">· keep this private</span></label
-            >
-            <div class="copy-row">
-              <input id="admin-link" type="text" readonly />
-              <button
-                type="button"
-                class="btn btn-secondary"
-                data-copy="admin-link"
-              >
-                Copy
-              </button>
+            <div class="field-row">
+              <label class="field-label" for="admin-link">Setup Link</label>
+              <div class="field-control">
+                <div class="copy-row">
+                  <input id="admin-link" type="text" readonly />
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-icon"
+                    data-copy="admin-link"
+                    title="Copy setup link"
+                    aria-label="Copy setup link"
+                  >
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h.5"/></svg>
+                  </button>
+                </div>
+                <p class="hint">
+                  Anyone with this link can edit the event and see every
+                  response.
+                </p>
+              </div>
             </div>
-            <p class="hint">
-              Anyone with this link can edit the event and see every response.
-            </p>
           </div>
         </section>
 
-        <section class="stack">
+        <section class="section">
           <div class="section-head">
             <h2>Results</h2>
-            <div class="actions">
+            <div class="meta">
+              <button type="button" id="refresh" class="text-link">Refresh</button>
+              <a id="export" class="text-link" download>Export CSV</a>
               <span id="resp-count" class="hint"></span>
-              <button type="button" id="refresh" class="btn btn-ghost btn-sm">
-                Refresh
-              </button>
-              <a id="export" class="btn btn-secondary btn-sm" download
-                >Export CSV</a
-              >
             </div>
           </div>
-          <div id="ranking" class="card"></div>
+          <div id="ranking"></div>
           <div id="grid" class="table-wrap"></div>
         </section>
 
-        <section class="stack">
-          <h2>Settings</h2>
-          <form id="settings-form" class="card stack" novalidate>
-            <div class="field">
-              <label for="title">Event name</label>
-              <input
-                id="title"
-                type="text"
-                maxlength="120"
-                required
-                autocomplete="off"
-              />
+        <section class="section">
+          <h2 class="section-title">Settings</h2>
+          <form id="settings-form" class="form" novalidate>
+            <div class="field-row">
+              <label class="field-label" for="title">Event Name</label>
+              <div class="field-control">
+                <input
+                  id="title"
+                  type="text"
+                  maxlength="120"
+                  required
+                  autocomplete="off"
+                />
+              </div>
             </div>
-            <div class="field">
-              <label for="description"
-                >Details <span class="optional">· optional</span></label
+            <div class="field-row">
+              <label class="field-label" for="description"
+                >Details <span class="optional">Optional</span></label
               >
-              <textarea id="description" rows="3" maxlength="1000"></textarea>
+              <div class="field-control">
+                <textarea id="description" rows="4" maxlength="1000"></textarea>
+              </div>
             </div>
-            <div class="field">
-              <span class="label">Dates &amp; times</span>
-              <div id="options-editor"></div>
+            <div class="field-row">
+              <span class="field-label" id="dates-label">Dates &amp; times</span>
+              <div
+                class="field-control"
+                id="options-editor"
+                role="group"
+                aria-labelledby="dates-label"
+              ></div>
             </div>
-            <div class="field">
-              <label for="timezone">Time zone</label>
-              <select id="timezone"></select>
+            <div class="field-row">
+              <label class="field-label" for="timezone">Time zone</label>
+              <div class="field-control">
+                <div class="select"><select id="timezone"></select></div>
+              </div>
             </div>
-            <label class="switch-row">
-              <input id="show-responses" type="checkbox" class="switch" />
-              <span class="switch-text">
-                <strong>Show responses publicly</strong>
-                <span class="hint"
-                  >Participants can see who picked which times.</span
-                >
-              </span>
-            </label>
-            <label class="switch-row">
-              <input id="closed" type="checkbox" class="switch" />
-              <span class="switch-text">
-                <strong>Close responses</strong>
-                <span class="hint"
-                  >Stop accepting new or changed responses.</span
-                >
-              </span>
-            </label>
-            <p
-              id="settings-error"
-              class="form-error"
-              hidden
-              aria-live="polite"
-            ></p>
+            <div class="field-row">
+              <span class="field-label">Responses</span>
+              <div class="field-control">
+                <label class="switch-row">
+                  <input id="show-responses" type="checkbox" class="switch" />
+                  <span class="switch-text">
+                    <strong>Show responses publicly</strong>
+                    <span class="hint"
+                      >Participants can see who picked which times.</span
+                    >
+                  </span>
+                </label>
+                <label class="switch-row">
+                  <input id="closed" type="checkbox" class="switch" />
+                  <span class="switch-text">
+                    <strong>Close responses</strong>
+                    <span class="hint"
+                      >Stop accepting new or changed responses.</span
+                    >
+                  </span>
+                </label>
+              </div>
+            </div>
             <div class="form-actions">
-              <button id="save-btn" class="btn btn-primary" type="submit">
-                Save changes
+              <p
+                id="settings-error"
+                class="form-error"
+                hidden
+                aria-live="polite"
+              ></p>
+              <button id="save-btn" class="btn btn-primary btn-lg" type="submit">
+                Save Changes
               </button>
-              <span
+              <p
                 id="save-status"
                 class="saved-note"
                 hidden
                 aria-live="polite"
-              ></span>
+              ></p>
             </div>
           </form>
         </section>
 
-        <section class="card danger-zone">
-          <div>
-            <h2>Delete event</h2>
-            <p>Permanently removes the event and all of its responses.</p>
+        <section class="section">
+          <h2 class="section-title">Delete</h2>
+          <div class="danger-row">
+            <div>
+              <strong>Delete this event</strong>
+              <p class="hint">
+                Permanently removes the event and all of its responses.
+              </p>
+            </div>
+            <button id="delete-event" type="button" class="btn btn-outline btn-lg">
+              Delete
+            </button>
           </div>
-          <button id="delete-event" type="button" class="btn btn-danger">
-            Delete event
-          </button>
         </section>
       </div>
     </main>
 
+    <script type="module" src="/assets/js/logo.js"></script>
     <script type="module" src="/assets/js/admin.js"></script>
-    <script src="/assets/vendor/snowstorm.js" defer></script>
-    <script src="/assets/js/snow.js" defer></script>
   </body>
 </html>

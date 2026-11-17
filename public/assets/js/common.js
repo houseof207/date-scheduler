@@ -17,22 +17,6 @@ export function el(tag, props = {}, ...children) {
   return node;
 }
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-export function checkIcon() {
-  const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 12 12');
-  svg.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS(SVG_NS, 'path');
-  path.setAttribute('d', 'M2.5 6.2 5 8.5l4.5-5');
-  path.setAttribute('fill', 'none');
-  path.setAttribute('stroke', 'currentColor');
-  path.setAttribute('stroke-width', '1.8');
-  path.setAttribute('stroke-linecap', 'round');
-  path.setAttribute('stroke-linejoin', 'round');
-  svg.append(path);
-  return svg;
-}
-
 let toastTimer;
 export function toast(message) {
   let node = document.querySelector('.toast');
@@ -201,35 +185,212 @@ const optionKey = (o) => `${o.date}|${o.start || ''}|${o.end || ''}`;
 const sortOptions = (list) =>
   list.sort((a, b) => optionKey(a).localeCompare(optionKey(b)));
 
-export function createOptionsEditor(root, initial = [], { onChange } = {}) {
+function plusIcon() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', 'M10 3v14M3 10h14');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.6');
+  path.setAttribute('stroke-linecap', 'round');
+  svg.append(path);
+  return svg;
+}
+
+function strokeIcon(d) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.4');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  svg.append(path);
+  return svg;
+}
+const calendarIcon = () =>
+  strokeIcon('M4.5 4.5h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1ZM3.5 8.5h13M7 2.5v4M13 2.5v4');
+const clockIcon = () => strokeIcon('M10 3a7 7 0 1 1 0 14a7 7 0 1 1 0-14ZM10 6.5V10l2.5 1.5');
+
+/** Icon button placed in front of a field; opens that field's native picker. */
+function pickerButton(label, icon) {
+  return el('button', { type: 'button', class: 'picker-btn', title: label, 'aria-label': label }, icon);
+}
+
+/** Wraps a time input with a clock button in front (the browser's own icon, which sits after the text, is hidden). */
+function createTimeField(input, label) {
+  const btn = pickerButton(label, clockIcon());
+  input.classList.add('picker-input');
+  btn.addEventListener('click', () => {
+    try {
+      input.showPicker();
+    } catch {
+      input.focus(); // no programmatic picker for time fields in this browser
+    }
+  });
+  return el('div', { class: 'picker-field' }, btn, input);
+}
+
+// ---------- short date field (two-digit year) ----------
+// Native date inputs always show the locale's full year and can't be reformatted,
+// so the visible field is text ("02/16/27", in the visitor's day/month/year order)
+// and a hidden native input supplies the calendar picker.
+
+const SHORT_DATE = (() => {
+  try {
+    const parts = new Intl.DateTimeFormat(undefined, { year: '2-digit', month: '2-digit', day: '2-digit' })
+      .formatToParts(new Date(2027, 1, 16));
+    const order = parts.filter((p) => ['year', 'month', 'day'].includes(p.type)).map((p) => p.type);
+    const sep = parts.find((p) => p.type === 'literal')?.value.trim() || '/';
+    if (order.length === 3) return { order, sep };
+  } catch {
+    /* fall through */
+  }
+  return { order: ['month', 'day', 'year'], sep: '/' };
+})();
+const SHORT_DATE_HINT = SHORT_DATE.order.map((t) => ({ month: 'mm', day: 'dd', year: 'yy' })[t]).join(SHORT_DATE.sep);
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** "2027-02-16" → "02/16/27" (in the visitor's order). */
+function formatShortDate(iso) {
+  const [y, m, d] = iso.split('-');
+  const values = { year: y.slice(-2), month: m, day: d };
+  return SHORT_DATE.order.map((t) => values[t]).join(SHORT_DATE.sep);
+}
+
+/** "2/16/27", "02/16/2027" or "021627" → "2027-02-16"; null if it isn't a real date. Two-digit years are 20xx. */
+function parseShortDate(text) {
+  const nums = text.trim().split(/\D+/).filter(Boolean);
+  let parts;
+  if (nums.length === 3) parts = nums;
+  else if (nums.length === 1 && /^\d{6}$/.test(nums[0])) parts = nums[0].match(/\d{2}/g);
+  else return null;
+  const v = {};
+  SHORT_DATE.order.forEach((t, i) => (v[t] = parts[i]));
+  if (v.year.length !== 2 && v.year.length !== 4) return null;
+  const y = Number(v.year) + (v.year.length === 2 ? 2000 : 0);
+  const m = Number(v.month);
+  const d = Number(v.day);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+function createShortDateField({ id, onPick }) {
+  const text = el('input', {
+    type: 'text',
+    id,
+    class: 'date-text picker-input',
+    inputmode: 'numeric',
+    autocomplete: 'off',
+    maxlength: 10,
+    placeholder: SHORT_DATE_HINT,
+    'aria-label': `Date (${SHORT_DATE_HINT})`,
+  });
+  const native = el('input', { type: 'date', class: 'date-native', tabindex: '-1', 'aria-hidden': 'true' });
+  const pick = pickerButton('Pick a date from a calendar', calendarIcon());
+  const wrap = el('div', { class: 'picker-field opt-date' }, pick, text, native);
+
+  // Add the separator after the first two parts as they're typed, so "021627" reads "02/16/27".
+  const sepAfter = new RegExp(`^\\d{2}(${SHORT_DATE.sep.replace(/[.*+?^${}()|[\]\\/-]/g, '\\$&')}\\d{2})?$`);
+  text.addEventListener('input', (e) => {
+    if (e.inputType === 'insertText' && text.selectionStart === text.value.length && sepAfter.test(text.value)) {
+      text.value += SHORT_DATE.sep;
+    }
+  });
+  // Tidy what was typed ("2/16/27" → "02/16/27") once the field loses focus.
+  text.addEventListener('change', () => {
+    const iso = parseShortDate(text.value);
+    if (iso) text.value = formatShortDate(iso);
+  });
+
+  if (typeof native.showPicker === 'function') {
+    pick.addEventListener('click', () => {
+      native.value = parseShortDate(text.value) || '';
+      try {
+        native.showPicker();
+      } catch {
+        text.focus();
+      }
+    });
+    native.addEventListener('change', () => {
+      if (!native.value) return;
+      text.value = formatShortDate(native.value);
+      onPick?.();
+    });
+  } else {
+    pick.hidden = true; // no programmatic picker in this browser: typing still works
+  }
+
+  return { wrap, text, getISO: () => parseShortDate(text.value) };
+}
+
+/**
+ * Date + time picker with a list of added times.
+ * `plusButton`: the Add button is a "+" icon, styled as ready (solid) once a date has been entered.
+ */
+export function createOptionsEditor(root, initial = [], { onChange, plusButton = false } = {}) {
   let options = sortOptions(initial.map((o) => ({ ...o })));
 
-  const date = el('input', { type: 'date', id: 'opt-date' });
-  const start = el('input', { type: 'time', id: 'opt-start', step: 300 });
-  const end = el('input', { type: 'time', id: 'opt-end', step: 300 });
-  const addBtn = el('button', { type: 'button', class: 'btn btn-secondary' }, 'Add');
+  const dateField = createShortDateField({
+    id: 'opt-date',
+    onPick: () => {
+      showError(error, '');
+      syncReady();
+    },
+  });
+  const date = dateField.text;
+  const start = el('input', { type: 'time', id: 'opt-start', step: 300, 'aria-label': 'Start time (optional)' });
+  const end = el('input', { type: 'time', id: 'opt-end', step: 300, 'aria-label': 'End time (optional)' });
+  const addBtn = plusButton
+    ? el('button', { type: 'button', class: 'btn btn-primary btn-icon btn-add', 'aria-label': 'Add this time' }, plusIcon())
+    : el('button', { type: 'button', class: 'btn btn-primary' }, 'Add');
+  // Solid once there's a date to add, outlined before that. It stays clickable so it can explain what's missing.
+  const syncReady = () => addBtn.classList.toggle('is-ready', Boolean(date.value.trim()));
+  date.addEventListener('input', syncReady);
+  date.addEventListener('change', syncReady);
+
+  // Time inputs have no placeholder, so mark empty ones to mute their "--:--" text.
+  const syncEmpty = () => {
+    for (const input of [start, end]) input.classList.toggle('is-empty', !input.value);
+  };
+  for (const input of [start, end]) {
+    input.addEventListener('input', syncEmpty);
+    input.addEventListener('change', syncEmpty);
+  }
   const error = el('p', { class: 'form-error', hidden: true, 'aria-live': 'polite' });
   const list = el('div');
-
-  const labelled = (cls, text, input) =>
-    el('div', { class: cls }, el('label', { class: 'mini-label', for: input.id }, text), input);
 
   root.replaceChildren(
     el(
       'div',
       { class: 'option-adder' },
-      labelled('adder-date', 'Date', date),
-      labelled('', 'Start (optional)', start),
-      labelled('', 'End (optional)', end),
+      dateField.wrap,
+      el(
+        'div',
+        { class: 'time-range' },
+        createTimeField(start, 'Pick a start time'),
+        el('span', { class: 'adder-to', 'aria-hidden': 'true' }, 'to'),
+        createTimeField(end, 'Pick an end time'),
+      ),
       addBtn,
     ),
     error,
     list,
   );
+  syncEmpty();
 
   // Suggest a one-hour slot when a start time is picked.
   start.addEventListener('change', () => {
     if (start.value && !end.value) end.value = fromMinutes(Math.min(toMinutes(start.value) + 60, 23 * 60 + 59));
+    syncEmpty();
   });
   for (const input of [date, start, end]) {
     input.addEventListener('keydown', (e) => {
@@ -250,10 +411,12 @@ export function createOptionsEditor(root, initial = [], { onChange } = {}) {
       }
       return false;
     };
-    if (!date.value) return fail('Pick a date first.', date);
+    if (!date.value.trim()) return fail('Pick a date first.', date);
+    const isoDate = dateField.getISO();
+    if (!isoDate) return fail(`Enter the date as ${SHORT_DATE_HINT}.`, date);
     if (end.value && !start.value) return fail('Add a start time, or clear the end time.', start);
     if (end.value && end.value <= start.value) return fail('End time must be after the start time.', end);
-    const option = { date: date.value, start: start.value, end: end.value };
+    const option = { date: isoDate, start: start.value, end: end.value };
     if (options.some((o) => optionKey(o) === optionKey(option))) return fail('That time is already on the list.');
     options.push(option);
     sortOptions(options);
@@ -271,6 +434,7 @@ export function createOptionsEditor(root, initial = [], { onChange } = {}) {
   }
 
   function render() {
+    syncReady();
     if (!options.length) {
       list.replaceChildren(el('div', { class: 'empty-note' }, 'No times yet. Pick a date and add it above.'));
       return;
@@ -350,7 +514,7 @@ export function renderGrid(event, { highlightId, onDelete } = {}) {
         'th',
         { scope: 'col', class: bestCls(o) },
         el('span', { class: 'col-date' }, formatDate(o.date)),
-        o.start ? formatTime(o.start) : 'All day',
+        formatTimeRange(o),
       ),
     ),
     onDelete ? el('th', { class: 'actions-col' }, el('span', { class: 'sr-only' })) : null,
@@ -374,7 +538,7 @@ export function renderGrid(event, { highlightId, onDelete } = {}) {
           { class: bestCls(o) },
           picked.has(o.id)
             ? el('span', { class: 'dot', role: 'img', 'aria-label': 'Available' })
-            : el('span', { class: 'no', 'aria-label': 'Not available' }, '–'),
+            : el('span', { class: 'no', role: 'img', 'aria-label': 'Not available' }),
         ),
       ),
       onDelete
@@ -406,4 +570,42 @@ export function renderGrid(event, { highlightId, onDelete } = {}) {
   );
 
   return el('table', { class: 'grid' }, el('thead', {}, head), el('tbody', {}, rows), el('tfoot', {}, foot));
+}
+
+/** Times ranked by how many people picked them, with a bar per time. Returns null when nobody has responded. */
+export function renderRanking(event) {
+  if (!event.responses.length) return null;
+  const { counts, max } = countVotes(event);
+  const total = event.responses.length;
+  const ranked = [...event.options].sort((a, b) => counts.get(b.id) - counts.get(a.id)); // stable: ties stay chronological
+
+  return el(
+    'div',
+    { class: 'ranking' },
+    ranked.map((o) => {
+      const count = counts.get(o.id);
+      const names = event.responses.filter((r) => r.selections.includes(o.id)).map((r) => r.name);
+      const top = count > 0 && count === max;
+      const fill = el('span');
+      fill.style.width = `${(count / total) * 100}%`; // CSSOM, so it isn't blocked by the CSP
+      return el(
+        'div',
+        { class: 'rank-row' },
+        el('div', { class: 'rank-date' }, formatDate(o.date)),
+        el('div', { class: 'rank-time' }, formatTimeRange(o)),
+        el('div', { class: 'rank-badge' }, top ? el('span', { class: 'badge' }, count === total ? 'Everyone' : 'Best') : null),
+        el('div', { class: 'rank-count', 'aria-label': `${count} of ${total} available` }, `${count}/${total}`),
+        el('div', { class: 'rank-bar', 'aria-hidden': 'true' }, fill),
+        names.length ? el('div', { class: 'rank-names' }, names.map((n) => el('span', {}, n))) : null,
+      );
+    }),
+  );
+}
+
+/** Fills the "Open"/"Closed" pill and time zone note at the top of the event and setup pages. */
+export function renderEyebrow(event, { pill, tz }) {
+  pill.textContent = event.closed ? 'Closed' : 'Open';
+  pill.classList.toggle('is-outline', event.closed);
+  const name = timezoneName(event.timezone);
+  tz.textContent = event.timezone === browserTimezone() ? name : `${name} · may differ from yours`;
 }

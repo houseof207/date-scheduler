@@ -50,6 +50,11 @@ public/assets/       styles.css, favicon, js/ (common.js shared by all pages)
 test/api.test.js     node:test suite
 ```
 
+## Design
+
+- Colors live in `public/assets/styles.css` as two tokens, `--fg` and `--bg`, plus opacity shades of them (`--fg-60`, `--fg-10`, …). `--accent` is only used for the blurred glow at the bottom of the page and for error text.
+- The `nownownow.now` wordmark is drawn by `public/assets/js/logo.js`. Its stems grow from the small logo to the tall one on page load (skipped when the visitor prefers reduced motion).
+
 ## Credits
 
-Background snow is [DHTML Snowstorm](http://schillmania.com/projects/snowstorm/) by Scott Schiller (BSD license), in `public/assets/vendor/snowstorm.js`. Its header lists two small local changes. Site settings (color, fixed positioning, reduced-motion opt-out) are in `public/assets/js/snow.js`. To turn the snow off, remove the two `<script>` tags at the end of each page.
+Type is [Hanken Grotesk](https://fonts.google.com/specimen/Hanken+Grotesk) (SIL Open Font License), self-hosted in `public/assets/fonts/`.

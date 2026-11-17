@@ -1,8 +1,5 @@
 import {
   api,
-  browserTimezone,
-  checkIcon,
-  countVotes,
   el,
   formatDate,
   formatOption,
@@ -10,9 +7,10 @@ import {
   groupByDate,
   plural,
   readLocal,
+  renderEyebrow,
   renderGrid,
+  renderRanking,
   showError,
-  timezoneName,
   writeLocal,
 } from './common.js';
 
@@ -23,7 +21,6 @@ const $ = (id) => document.getElementById(id);
 const form = $('response-form');
 const nameInput = $('name');
 const slotsBox = $('slots');
-const toggleAllBtn = $('toggle-all');
 const submitBtn = $('submit-btn');
 const errorBox = $('form-error');
 const savedNote = $('saved-note');
@@ -62,16 +59,14 @@ async function load() {
 }
 
 function render() {
-  document.title = `${event.title} · Whenever`;
+  document.title = `${event.title} · nownownow.now`;
   $('loading').hidden = true;
   $('event').hidden = false;
   $('ev-title').textContent = event.title;
   $('ev-desc').textContent = event.description;
   $('ev-desc').hidden = !event.description;
 
-  const tz = timezoneName(event.timezone);
-  $('tz-note').textContent =
-    event.timezone === browserTimezone() ? `Times in ${tz}` : `Times in ${tz}, which may differ from yours`;
+  renderEyebrow(event, { pill: $('status-pill'), tz: $('tz-note') });
 
   $('closed-banner').hidden = !event.closed;
   for (const node of form.querySelectorAll('input, button')) node.disabled = event.closed;
@@ -82,19 +77,20 @@ function render() {
   const section = $('responses-section');
   section.hidden = !event.showResponses;
   if (event.showResponses) {
-    $('resp-count').textContent = plural(event.responseCount, 'response');
+    $('resp-count').textContent = plural(event.responseCount, 'Response');
+    const ranking = renderRanking(event);
+    $('ranking').replaceChildren(...(ranking ? [ranking] : []));
     $('grid').replaceChildren(renderGrid(event, { highlightId: event.mine?.id }));
   }
 }
 
 function renderSlots() {
-  const { counts } = event.showResponses ? countVotes(event) : { counts: null };
   slotsBox.replaceChildren(
     ...groupByDate(event.options).map(({ date, items }) =>
       el(
         'div',
-        { class: 'slot-group' },
-        el('div', { class: 'slot-group-date' }, formatDate(date, { weekday: 'long' })),
+        { class: 'slot-group field-row' },
+        el('h3', { class: 'slot-group-date' }, formatDate(date)),
         el(
           'div',
           { class: 'slots' },
@@ -108,17 +104,13 @@ function renderSlots() {
                 'aria-label': formatOption(o),
                 disabled: event.closed,
               },
-              el('span', { class: 'check' }, checkIcon()),
               el('span', { class: 'slot-time' }, formatTimeRange(o)),
-              counts && counts.get(o.id) > 0
-                ? el('span', { class: 'slot-count', title: 'People available' }, counts.get(o.id))
-                : null,
+              el('span', { class: 'check', 'aria-hidden': 'true' }),
             );
             btn.addEventListener('click', () => {
               if (selected.has(o.id)) selected.delete(o.id);
               else selected.add(o.id);
               btn.setAttribute('aria-pressed', String(selected.has(o.id)));
-              updateToggleAll();
               savedNote.hidden = true;
             });
             return btn;
@@ -127,23 +119,10 @@ function renderSlots() {
       ),
     ),
   );
-  updateToggleAll();
 }
-
-function updateToggleAll() {
-  const all = event.options.length > 0 && event.options.every((o) => selected.has(o.id));
-  toggleAllBtn.textContent = all ? 'Clear all' : 'Select all';
-}
-
-toggleAllBtn.addEventListener('click', () => {
-  const all = event.options.every((o) => selected.has(o.id));
-  selected = all ? new Set() : new Set(event.options.map((o) => o.id));
-  renderSlots();
-  savedNote.hidden = true;
-});
 
 function renderIdentity() {
-  submitBtn.textContent = mine ? 'Update availability' : 'Submit availability';
+  submitBtn.textContent = mine ? 'Update Availability' : 'Submit Availability';
   $('not-you').hidden = !mine || event.closed;
   if (mine) $('not-you-name').textContent = event.mine?.name ?? '';
 }
